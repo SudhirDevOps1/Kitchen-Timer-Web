@@ -31,7 +31,7 @@
 │  ⏱️ Smart Digital Timer                     │
 │                                             │
 │   12:34:56 PM                               │
-│   Monday, 24 October 2024                   │
+│   Monday, 24 October 2026                   │
 │   🌤️ 22°C  │  🔋 85%  │  🟢 ONLINE         │
 │                                             │
 │   ┌─────────────────────────────────────┐   │
@@ -466,7 +466,9 @@ This project is licensed under the **MIT License** — see below:
 ```
 MIT License
 
-Copyright (c) 2024 Smart Digital Timer
+MIT License
+
+Copyright (c) 2026 Sudhir Singh
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -546,6 +548,6 @@ SOFTWARE.
 
 **Made with 💻 code, ☕ coffee, and ❤️ passion**
 
-*© 2024 Smart Digital Timer — Free & Open Source*
+*© 2026 Smart Digital Timer — Free & Open Source*
 
 </div>
