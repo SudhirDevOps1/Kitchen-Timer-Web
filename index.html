@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Smart Digital Kitchen & Desk Timer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Particle Background -->
+    <canvas id="particleCanvas" aria-hidden="true"></canvas>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+    <!-- ═══════════════════════════════════════════════
+         HEADER / DASHBOARD
+         ═══════════════════════════════════════════════ -->
+    <header class="header-bar glass" id="headerBar" style="position:sticky;top:0;z-index:100;padding:12px 16px;border-radius:0 0 16px 16px;">
+        <div class="main-container" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="flex:1;min-width:0;">
+                <div id="clockDisplay" class="lcd-text lcd-text-large" style="line-height:1;">--:--:-- --</div>
+                <div id="dateDisplay" style="font-size:0.75rem;color:var(--text-secondary);margin-top:2px;letter-spacing:1px;">Loading...</div>
+                <div class="world-clocks" id="worldClocks" style="margin-top:6px;"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+                <div class="status-bar" id="statusBar">
+                    <span class="status-chip" id="batteryChip" style="display:none;">
+                        <span id="batteryIcon">🔋</span>
+                        <span id="batteryPct">--%</span>
+                    </span>
+                    <span class="status-chip" id="wakeLockChip" style="display:none;">
+                        <span class="status-dot active"></span>
+                        <span>AWAKE</span>
+                    </span>
+                    <span class="status-chip" id="connectionChip">
+                        <span class="status-dot online" id="connectionDot"></span>
+                        <span id="connectionText">ONLINE</span>
+                    </span>
+                </div>
+                <div id="weatherDisplay" class="weather-display" style="display:none;">
+                    <span id="weatherIcon" class="weather-icon">--</span>
+                    <span id="weatherTemp" class="weather-temp">--°</span>
+                    <button id="tempToggle" class="btn btn-ghost btn-round" style="width:32px;height:32px;font-size:0.65rem;" aria-label="Toggle temperature unit" title="Toggle °C/°F">°C</button>
+                </div>
+                <div style="display:flex;gap:4px;">
+                    <button id="shortcutsBtn" class="btn btn-ghost btn-round" style="width:36px;height:36px;font-size:0.8rem;" aria-label="Keyboard shortcuts" title="Shortcuts">?</button>
+                    <button id="settingsBtn" class="btn btn-ghost btn-round" style="width:36px;height:36px;" aria-label="Open settings" title="Settings">⚙️</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════════════
+         MAIN CONTENT
+         ═══════════════════════════════════════════════ -->
+    <main class="main-container" id="mainContent" style="padding:16px;position:relative;z-index:1;">
+        <!-- Tab Navigation -->
+        <nav class="glass-sm" style="display:flex;gap:3px;padding:5px;margin-bottom:16px;" role="tablist" aria-label="Timer modes">
+            <button class="tab-btn active" data-tab="timers" role="tab" aria-selected="true" aria-controls="panel-timers">
+                <span class="tab-icon">⏱️</span><span>Timers</span>
+            </button>
+            <button class="tab-btn" data-tab="stopwatch" role="tab" aria-selected="false" aria-controls="panel-stopwatch">
+                <span class="tab-icon">🏃</span><span>Stopwatch</span>
+            </button>
+            <button class="tab-btn" data-tab="pomodoro" role="tab" aria-selected="false" aria-controls="panel-pomodoro">
+                <span class="tab-icon">🍅</span><span>Pomodoro</span>
+            </button>
+            <button class="tab-btn" data-tab="history" role="tab" aria-selected="false" aria-controls="panel-history">
+                <span class="tab-icon">📋</span><span>History</span>
+            </button>
+        </nav>
+
+        <!-- ── TAB 1: COUNTDOWN TIMERS ── -->
+        <div id="panel-timers" class="tab-panel active glass" style="padding:20px;" role="tabpanel">
+            <div class="timer-subtab" role="tablist" aria-label="Timer selection">
+                <button class="timer-subtab-btn active" data-timer="0" role="tab" aria-selected="true">
+                    <span id="timerSubtabLabel0">Timer 1</span>
+                    <span class="timer-subtab-status" id="timerSubtabStatus0"></span>
+                </button>
+                <button class="timer-subtab-btn" data-timer="1" role="tab" aria-selected="false">
+                    <span id="timerSubtabLabel1">Timer 2</span>
+                    <span class="timer-subtab-status" id="timerSubtabStatus1"></span>
+                </button>
+                <button class="timer-subtab-btn" data-timer="2" role="tab" aria-selected="false">
+                    <span id="timerSubtabLabel2">Timer 3</span>
+                    <span class="timer-subtab-status" id="timerSubtabStatus2"></span>
+                </button>
+            </div>
+
+            <div style="text-align:center;margin-bottom:12px;">
+                <input type="text" id="timerLabelInput" class="timer-label-input" placeholder="Timer Name" maxlength="20" aria-label="Timer name">
+            </div>
+
+            <div class="progress-ring-container" style="width:220px;height:220px;margin:0 auto 16px;">
+                <svg viewBox="0 0 100 100">
+                    <circle class="progress-ring-bg" cx="50" cy="50" r="42"/>
+                    <circle class="progress-ring-fill" id="timerRingFill" cx="50" cy="50" r="42" stroke-dasharray="263.89" stroke-dashoffset="0"/>
+                </svg>
+                <div class="progress-ring-text">
+                    <div id="timerDisplay" class="lcd-text lcd-text-medium">00:00</div>
+                    <div id="timerElapsed" style="font-size:0.6rem;color:var(--text-muted);margin-top:4px;"></div>
+                </div>
+            </div>
+
+            <div class="preset-grid">
+                <button class="preset-btn" data-seconds="60">1m</button>
+                <button class="preset-btn" data-seconds="180">3m</button>
+                <button class="preset-btn" data-seconds="300">5m</button>
+                <button class="preset-btn" data-seconds="600">10m</button>
+                <button class="preset-btn" data-seconds="900">15m</button>
+                <button class="preset-btn" data-seconds="1800">30m</button>
+                <button class="preset-btn" data-seconds="3600">1h</button>
+                <button class="preset-btn" data-seconds="7200">2h</button>
+            </div>
+
+            <div id="customPresetsSection" style="margin-bottom:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                    <span style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Custom Presets</span>
+                    <button class="btn btn-ghost btn-sm" id="savePresetBtn" title="Save current time as preset" style="font-size:0.6rem;padding:4px 8px;min-height:28px;">+ SAVE</button>
+                </div>
+                <div class="custom-presets-area" id="customPresetsArea"></div>
+            </div>
+
+            <div class="time-adjust">
+                <div class="time-adjust-unit">
+                    <span class="time-adjust-label">Min</span>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <button class="adj-btn" data-unit="min" data-dir="-1">−</button>
+                        <span id="timerMinDisplay" class="adj-value">00</span>
+                        <button class="adj-btn" data-unit="min" data-dir="1">+</button>
+                    </div>
+                </div>
+                <span style="font-size:1.8rem;color:var(--text-muted);font-weight:700;">:</span>
+                <div class="time-adjust-unit">
+                    <span class="time-adjust-label">Sec</span>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <button class="adj-btn" data-unit="sec" data-dir="-1">−</button>
+                        <span id="timerSecDisplay" class="adj-value">00</span>
+                        <button class="adj-btn" data-unit="sec" data-dir="1">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="timer-controls">
+                <button id="timerStartBtn" class="btn btn-success">▶ START</button>
+                <button id="timerPauseBtn" class="btn btn-warning" style="display:none;">⏸ PAUSE</button>
+                <button id="timerResetBtn" class="btn btn-accent">↺ RESET</button>
+                <button id="timerClearBtn" class="btn btn-danger">✕ CLEAR</button>
+            </div>
+        </div>
+
+        <!-- ── TAB 2: STOPWATCH ── -->
+        <div id="panel-stopwatch" class="tab-panel glass" style="padding:20px;" role="tabpanel">
+            <div style="text-align:center;">
+                <div id="stopwatchDisplay" class="lcd-text lcd-text-large" style="margin-bottom:4px;">00:00.00</div>
+                <div id="stopwatchTotalDisplay" style="font-size:0.7rem;color:var(--text-muted);margin-bottom:20px;"></div>
+                <div class="timer-controls" style="margin-bottom:16px;">
+                    <button id="swStartBtn" class="btn btn-success">▶ START</button>
+                    <button id="swPauseBtn" class="btn btn-warning" style="display:none;">⏸ PAUSE</button>
+                    <button id="swLapBtn" class="btn btn-accent" style="display:none;">🏁 LAP</button>
+                    <button id="swResetBtn" class="btn btn-danger">↺ RESET</button>
+                </div>
+            </div>
+            <div id="lapStats" style="display:none;margin-bottom:8px;">
+                <div style="display:flex;justify-content:center;gap:16px;font-size:0.7rem;">
+                    <span>Best: <span id="lapBest" style="color:var(--success);font-weight:700;">--</span></span>
+                    <span>Worst: <span id="lapWorst" style="color:var(--danger);font-weight:700;">--</span></span>
+                    <span>Avg: <span id="lapAvg" style="color:var(--accent);font-weight:700;">--</span></span>
+                </div>
+            </div>
+            <div id="lapList" class="lap-list" style="display:none;" role="list" aria-label="Lap times"></div>
+        </div>
+
+        <!-- ── TAB 3: POMODORO ── -->
+        <div id="panel-pomodoro" class="tab-panel glass" style="padding:20px;" role="tabpanel">
+            <div style="text-align:center;">
+                <div class="pomo-phase-indicator" id="pomoPhaseIndicator">
+                    <div class="pomo-phase-dot" data-phase="0"></div>
+                    <div class="pomo-phase-dot" data-phase="1"></div>
+                    <div class="pomo-phase-dot" data-phase="2"></div>
+                    <div class="pomo-phase-dot" data-phase="3"></div>
+                </div>
+                <div id="pomoPhaseLabel" class="pomo-phase-label" style="color:var(--accent);">Work Session</div>
+                <div class="progress-ring-container" style="width:220px;height:220px;margin:0 auto 20px;">
+                    <svg viewBox="0 0 100 100">
+                        <circle class="progress-ring-bg" cx="50" cy="50" r="42"/>
+                        <circle class="progress-ring-fill" id="pomoRingFill" cx="50" cy="50" r="42" stroke-dasharray="263.89" stroke-dashoffset="0"/>
+                    </svg>
+                    <div class="progress-ring-text">
+                        <div id="pomoDisplay" class="lcd-text lcd-text-medium">25:00</div>
+                    </div>
+                </div>
+                <div class="timer-controls" style="margin-bottom:16px;">
+                    <button id="pomoStartBtn" class="btn btn-success">▶ START</button>
+                    <button id="pomoPauseBtn" class="btn btn-warning" style="display:none;">⏸ PAUSE</button>
+                    <button id="pomoResetBtn" class="btn btn-accent">↺ RESET</button>
+                    <button id="pomoSkipBtn" class="btn btn-ghost">⏭ SKIP</button>
+                </div>
+                <div class="separator"></div>
+                <div class="pomo-settings">
+                    <label class="inline-toggle-label">
+                        <span>Auto-start next</span>
+                        <span class="toggle">
+                            <input type="checkbox" id="pomoAutoStart" aria-label="Auto-start next phase">
+                            <span class="toggle-slider"></span>
+                        </span>
+                    </label>
+                </div>
+                <div style="margin-top:8px;font-size:0.7rem;color:var(--text-muted);">
+                    Cycle: <span id="pomoCycleCount">0</span> / 4
+                </div>
+                <div class="separator"></div>
+                <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Today's Stats</div>
+                <div class="pomo-stats">
+                    <div class="pomo-stat-card">
+                        <div class="pomo-stat-value" id="statPomosDone">0</div>
+                        <div class="pomo-stat-label">Pomodoros</div>
+                    </div>
+                    <div class="pomo-stat-card">
+                        <div class="pomo-stat-value" id="statFocusTime">0m</div>
+                        <div class="pomo-stat-label">Focus Time</div>
+                    </div>
+                    <div class="pomo-stat-card">
+                        <div class="pomo-stat-value" id="statBreakTime">0m</div>
+                        <div class="pomo-stat-label">Break Time</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── TAB 4: HISTORY ── -->
+        <div id="panel-history" class="tab-panel glass" style="padding:20px;" role="tabpanel">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <h2 style="font-size:1rem;font-weight:700;">📋 Timer History</h2>
+                <button class="btn btn-ghost btn-sm" id="clearHistoryBtn" style="font-size:0.65rem;">🗑️ CLEAR</button>
+            </div>
+            <div id="historyContent">
+                <div class="history-empty">
+                    <div class="history-empty-icon">📭</div>
+                    <div style="font-size:0.85rem;margin-bottom:4px;">No completed timers yet</div>
+                    <div style="font-size:0.7rem;">Finished timers will appear here</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── CREDITS / FOOTER ── -->
+        <div class="credits-section">
+            <div class="credits-card glass-sm">
+                <div class="credits-title">⚡ Smart Digital Timer</div>
+                <div class="credits-info">
+                    Built with ❤️ using Pure HTML5 + CSS3 + JavaScript<br>
+                    No frameworks. No libraries. Zero dependencies.<br><br>
+                    <span class="credits-badge">⏱️ Countdown Timers</span>
+                    <span class="credits-badge">🏃 Stopwatch</span>
+                    <span class="credits-badge">🍅 Pomodoro</span>
+                    <span class="credits-badge">🌡️ Live Weather</span>
+                    <span class="credits-badge">🔔 Smart Alarms</span>
+                    <span class="credits-badge">🌙 Dark Mode</span>
+                    <span class="credits-badge">📊 History</span>
+                    <span class="credits-badge">⌨️ Shortcuts</span>
+                    <span class="credits-badge">🔔 Notifications</span>
+                    <span class="credits-badge">🔒 Wake Lock</span>
+                    <span class="credits-badge">💬 Voice</span>
+                    <span class="credits-badge">🎨 Particles</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ── MINI FLOATING TIMER ── -->
+    <div class="mini-timer glass-sm" id="miniTimer" aria-label="Floating timer">
+        <span class="mini-timer-label" id="miniTimerLabel">Timer</span>
+        <span class="mini-timer-display" id="miniTimerDisplay">00:00</span>
+        <button class="mini-timer-close" id="miniTimerClose" aria-label="Close mini timer">✕</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════
+         SETTINGS MODAL (FIXED — all toggles now clickable!)
+         ═══════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="settingsModal" role="dialog" aria-modal="true" aria-label="Settings">
+        <div class="modal-content glass">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+                <h2 style="font-size:1.1rem;font-weight:700;">⚙️ Settings</h2>
+                <button class="btn btn-ghost btn-round" id="settingsCloseBtn" aria-label="Close settings" style="width:36px;height:36px;">✕</button>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Dark Mode<small>Toggle dark/light theme</small></div>
+                <label class="toggle" aria-label="Toggle dark mode">
+                    <input type="checkbox" id="settingDarkMode" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Auto Theme<small>Switch theme by time of day</small></div>
+                <label class="toggle" aria-label="Toggle auto theme">
+                    <input type="checkbox" id="settingAutoTheme">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">24-Hour Clock<small>Switch between 12h and 24h</small></div>
+                <label class="toggle" aria-label="Toggle 24-hour clock">
+                    <input type="checkbox" id="setting24h">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Celsius</div>
+                <label class="toggle" aria-label="Toggle celsius">
+                    <input type="checkbox" id="settingCelsius" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="separator"></div>
+
+            <div class="setting-row">
+                <div class="setting-label">Tick-Tock Sound<small>Ambient clock ticking</small></div>
+                <label class="toggle" aria-label="Toggle tick-tock sound">
+                    <input type="checkbox" id="settingTickTock">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Alarm Sound</div>
+                <label class="toggle" aria-label="Toggle alarm sound">
+                    <input type="checkbox" id="settingAlarmSound" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Alarm Tone<small>Choose alarm pattern</small></div>
+                <div class="tone-selector">
+                    <button class="tone-btn active" data-tone="0">1</button>
+                    <button class="tone-btn" data-tone="1">2</button>
+                    <button class="tone-btn" data-tone="2">3</button>
+                    <button class="tone-btn" data-tone="3">4</button>
+                    <button class="tone-btn" data-tone="-1" aria-label="Preview alarm tone">🔊</button>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Volume<small>Adjust alarm volume</small></div>
+                <div class="volume-slider-wrap">
+                    <span style="font-size:0.9rem;">🔈</span>
+                    <input type="range" class="volume-slider" id="settingVolume" min="0" max="100" value="70" aria-label="Volume">
+                    <span class="volume-value" id="volumeValue">70%</span>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Voice Announcements<small>Speak timer labels when done</small></div>
+                <label class="toggle" aria-label="Toggle voice announcements">
+                    <input type="checkbox" id="settingVoice" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Haptic Feedback<small>Vibrate on events (mobile)</small></div>
+                <label class="toggle" aria-label="Toggle haptic feedback">
+                    <input type="checkbox" id="settingHaptic" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="separator"></div>
+
+            <div class="setting-row">
+                <div class="setting-label">Browser Notifications<small>Notify when tab is hidden</small></div>
+                <label class="toggle" aria-label="Toggle browser notifications">
+                    <input type="checkbox" id="settingNotifications">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Keep Screen On<small>Prevent screen from sleeping</small></div>
+                <label class="toggle" aria-label="Toggle screen wake lock">
+                    <input type="checkbox" id="settingWakeLock">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Particles Background<small>Animated floating particles</small></div>
+                <label class="toggle" aria-label="Toggle particles">
+                    <input type="checkbox" id="settingParticles" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Mini Floating Timer<small>Floating widget on scroll</small></div>
+                <label class="toggle" aria-label="Toggle mini floating timer">
+                    <input type="checkbox" id="settingMiniTimer" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="separator"></div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-accent" id="fullscreenBtn" style="flex:1;">🖥️ Fullscreen</button>
+                <button class="btn btn-ghost" id="exportBtn" style="flex:1;" title="Export settings">📤 Export</button>
+                <button class="btn btn-ghost" id="importBtn" style="flex:1;" title="Import settings">📥 Import</button>
+            </div>
+            <div style="margin-top:8px;">
+                <button class="btn btn-danger" id="resetAllBtn" style="width:100%;">🗑️ Reset All Data</button>
+            </div>
+            <input type="file" id="importFileInput" accept=".json" style="display:none;" aria-hidden="true">
+        </div>
+    </div>
+
+    <!-- ── KEYBOARD SHORTCUTS MODAL ── -->
+    <div class="modal-overlay" id="shortcutsModal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+        <div class="modal-content glass">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+                <h2 style="font-size:1.1rem;font-weight:700;">⌨️ Keyboard Shortcuts</h2>
+                <button class="btn btn-ghost btn-round" id="shortcutsCloseBtn" style="width:36px;height:36px;">✕</button>
+            </div>
+            <div class="shortcut-row"><span>Start / Pause</span><div class="shortcut-keys"><span class="kbd">Space</span></div></div>
+            <div class="shortcut-row"><span>Record Lap</span><div class="shortcut-keys"><span class="kbd">L</span></div></div>
+            <div class="shortcut-row"><span>Reset</span><div class="shortcut-keys"><span class="kbd">R</span></div></div>
+            <div class="shortcut-row"><span>Timers Tab</span><div class="shortcut-keys"><span class="kbd">1</span></div></div>
+            <div class="shortcut-row"><span>Stopwatch Tab</span><div class="shortcut-keys"><span class="kbd">2</span></div></div>
+            <div class="shortcut-row"><span>Pomodoro Tab</span><div class="shortcut-keys"><span class="kbd">3</span></div></div>
+            <div class="shortcut-row"><span>History Tab</span><div class="shortcut-keys"><span class="kbd">4</span></div></div>
+            <div class="shortcut-row"><span>Settings</span><div class="shortcut-keys"><span class="kbd">S</span></div></div>
+            <div class="shortcut-row"><span>Fullscreen</span><div class="shortcut-keys"><span class="kbd">F</span></div></div>
+            <div class="shortcut-row"><span>Toggle Dark</span><div class="shortcut-keys"><span class="kbd">D</span></div></div>
+            <div class="shortcut-row"><span>Close / Dismiss</span><div class="shortcut-keys"><span class="kbd">Esc</span></div></div>
+            <div class="shortcut-row"><span>Show Shortcuts</span><div class="shortcut-keys"><span class="kbd">?</span></div></div>
+        </div>
+    </div>
+
+    <!-- ── ABOUT MODAL ── -->
+    <div class="modal-overlay" id="aboutModal" role="dialog" aria-modal="true" aria-label="About this app">
+        <div class="modal-content glass">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+                <h2 style="font-size:1.1rem;font-weight:700;">ℹ️ About</h2>
+                <button class="btn btn-ghost btn-round" id="aboutCloseBtn" style="width:36px;height:36px;">✕</button>
+            </div>
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:3rem;margin-bottom:8px;">⏱️</div>
+                <div style="font-size:1.2rem;font-weight:700;color:var(--accent);margin-bottom:4px;">Smart Digital Timer</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);">Version 2.0.0</div>
+            </div>
+            <div class="about-grid">
+                <div class="about-stat">
+                    <div class="about-stat-icon">⏱️</div>
+                    <div class="about-stat-value">3</div>
+                    <div class="about-stat-label">Timers</div>
+                </div>
+                <div class="about-stat">
+                    <div class="about-stat-icon">🏃</div>
+                    <div class="about-stat-value">0.01s</div>
+                    <div class="about-stat-label">Precision</div>
+                </div>
+                <div class="about-stat">
+                    <div class="about-stat-icon">🎨</div>
+                    <div class="about-stat-value">2</div>
+                    <div class="about-stat-label">Themes</div>
+                </div>
+                <div class="about-stat">
+                    <div class="about-stat-icon">🔔</div>
+                    <div class="about-stat-value">4</div>
+                    <div class="about-stat-label">Alarm Tones</div>
+                </div>
+            </div>
+            <div class="separator"></div>
+            <div style="font-size:0.75rem;color:var(--text-secondary);line-height:1.8;text-align:center;">
+                A premium smart-home dashboard timer built entirely with<br>
+                <strong style="color:var(--accent);">Pure HTML5 + CSS3 + Vanilla JavaScript</strong><br><br>
+                ✅ Zero Dependencies &nbsp; ✅ No External Libraries<br>
+                ✅ Web Audio API &nbsp; ✅ SpeechSynthesis API<br>
+                ✅ Open-Meteo Weather &nbsp; ✅ Wake Lock API<br>
+                ✅ LocalStorage &nbsp; ✅ Notification API<br>
+                ✅ Fully Responsive &nbsp; ✅ Accessible (ARIA)
+            </div>
+            <div class="separator"></div>
+            <div style="text-align:center;">
+                <div style="font-size:0.7rem;color:var(--text-muted);">
+                    Made with ❤️ by <strong style="color:var(--accent);">Expert Frontend Developer</strong><br>
+                    Designed for Kitchen, Desk & Productivity Use<br>
+                    © 2024 — Free &amp; Open Source
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── ALARM OVERLAY ── -->
+    <div class="alarm-overlay" id="alarmOverlay" role="alert" aria-live="assertive">
+        <div class="alarm-icon">🔔</div>
+        <div class="alarm-label" id="alarmLabel">Timer Finished!</div>
+        <div id="alarmSubLabel" style="color:rgba(255,255,255,0.7);font-size:0.9rem;margin-bottom:8px;"></div>
+        <button class="stop-alarm-btn" id="stopAlarmBtn" aria-label="Stop alarm">STOP ALARM</button>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
